@@ -1,4 +1,5 @@
-import { Injectable, NgZone } from '@angular/core';
+import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { inject, Injectable, NgZone } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 
 interface IWindow extends Window {
@@ -11,9 +12,12 @@ interface IWindow extends Window {
 export class SpeechRecognitionService {
   private recognition?: SpeechRecognition;
   private transcriptSubject = new Subject<string>();
+  private audioSubject = new Subject<Blob>();
   private listening = false;
+  private mediaRecorder?: MediaRecorder;
+  private audioChunks: Blob[] = [];
 
-  constructor(private ngZone: NgZone) {}
+  private ngZone = inject(NgZone)
 
   private initRecognition(): boolean {
     if (typeof window === 'undefined') {
@@ -63,6 +67,33 @@ export class SpeechRecognitionService {
     return true;
   }
 
+  async startRecording(): Promise<void> {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    this.mediaRecorder = new MediaRecorder(stream);
+    this.audioChunks = [];
+
+    this.mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        this.audioChunks.push(event.data);
+      }
+    };
+
+    this.mediaRecorder.onstop = () => {
+      const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+      this.audioChunks = [];
+      this.ngZone.run(() => this.audioSubject.next(audioBlob));
+    };
+
+    this.mediaRecorder.start();
+
+    setInterval(() => {
+      if (this.mediaRecorder?.state === 'recording') {
+        this.mediaRecorder.stop();
+        this.mediaRecorder.start();
+      }
+    }, 10_000);
+  }
+
   start(): void {
     if (this.initRecognition() && !this.listening) {
       this.recognition!.start();
@@ -73,12 +104,17 @@ export class SpeechRecognitionService {
   stop(): void {
     if (this.recognition && this.listening) {
       this.recognition.stop();
+      this.mediaRecorder?.stop();
       this.listening = false;
     }
   }
 
   getTranscript(): Observable<string> {
     return this.transcriptSubject.asObservable();
+  }
+
+  getAudio(): Observable<Blob> {
+    return this.audioSubject.asObservable();
   }
 
   isListening(): boolean {

@@ -1,16 +1,29 @@
-from fastapi import APIRouter
-import uuid
-from redis_client import r
-import json
+from fastapi import APIRouter, File, Form, UploadFile, Depends, HTTPException
 
-router = APIRouter(prefix="/interview", tags=["chat"])
-SESSION_TTL = 60 * 30
+from services.redis_service import RedisService
+
+router = APIRouter(prefix="/api/interview", tags=["chat"])
+
+
+def get_redis_service() -> RedisService:
+    return RedisService()
 
 
 @router.post("/start_session")
-async def start_session():
-    session_id = str(uuid.uuid4())
-    r.setex(f"session:{session_id}", SESSION_TTL, json.dumps({
-        "history": []
-    }))
+async def start_session(redis_service: RedisService = Depends(get_redis_service)):
+    session_id = redis_service.init_session()
     return {"session_id": session_id}
+
+
+@router.post("/send_audio")
+async def send_audio(
+        session_id: str = Form(...),
+        transcript: str = Form(...),
+        audio: UploadFile = File(...),
+        redis_service: RedisService = Depends(get_redis_service)
+):
+    is_ok = await redis_service.add_to_history(session_id, transcript, audio)
+    if not is_ok:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    return {"status": "ok"}
