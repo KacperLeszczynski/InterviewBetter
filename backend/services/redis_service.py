@@ -2,10 +2,8 @@ import json
 import os
 import uuid
 from datetime import datetime
-from http.client import HTTPException
-
+import ffmpeg
 from fastapi import UploadFile
-
 from redis_client import r
 
 SESSION_TTL = 60 * 30
@@ -30,20 +28,34 @@ class RedisService:
         if not r.exists(key):
             return False
 
-        timestamp = datetime.utcnow().isoformat().replace(":", "-").replace(".", "-")
-        filename = f"{session_id}_{timestamp}.webm"
-        filepath = os.path.join(UPLOAD_DIR, filename)
+        timestamp, filename, filepath = self.prepare_data(session_id)
 
         with open(filepath, "wb") as f:
             f.write(await audio.read())
+
+        filepath = self.convert_audio(filepath)
 
         session_data = json.loads(r.get(key))
         session_data["history"].append({
             "timestamp": timestamp,
             "transcript": transcript,
-            "audio_url": f"/audio/{filename}"
+            "audio_url": filepath
         })
 
         r.setex(key, SESSION_TTL, json.dumps(session_data))
 
         return True
+
+    def convert_audio(self, audio_path):
+        wav_path = audio_path.replace(".webm", ".wav")
+        ffmpeg.input(audio_path).output(wav_path, ar=16000, ac=1).run(overwrite_output=True)
+        os.remove(audio_path)
+        return wav_path
+
+
+    def prepare_data(self, session_id):
+        timestamp = datetime.utcnow().isoformat().replace(":", "-").replace(".", "-")
+        filename = f"{session_id}_{timestamp}.webm"
+        filepath = os.path.join(UPLOAD_DIR, filename)
+
+        return timestamp, filename, filepath

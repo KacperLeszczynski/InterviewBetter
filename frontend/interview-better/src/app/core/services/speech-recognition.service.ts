@@ -14,6 +14,7 @@ export class SpeechRecognitionService {
   private transcriptSubject = new Subject<string>();
   private audioSubject = new Subject<Blob>();
   private listening = false;
+  private intervalId?: number;
   private mediaRecorder?: MediaRecorder;
   private audioChunks: Blob[] = [];
 
@@ -86,7 +87,7 @@ export class SpeechRecognitionService {
 
     this.mediaRecorder.start();
 
-    setInterval(() => {
+    this.intervalId = window.setInterval(() => {
       if (this.mediaRecorder?.state === 'recording') {
         this.mediaRecorder.stop();
         this.mediaRecorder.start();
@@ -106,6 +107,11 @@ export class SpeechRecognitionService {
       this.recognition.stop();
       this.mediaRecorder?.stop();
       this.listening = false;
+    }
+
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = undefined;
     }
   }
 
