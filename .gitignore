@@ -1,4 +1,5 @@
 backend/.env
 backend/uploads/
+backend/notebooks/audio/RavDess/*
 
 ./OpisAplikacji.docx
