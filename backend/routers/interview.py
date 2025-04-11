@@ -1,5 +1,6 @@
 from fastapi import APIRouter, File, Form, UploadFile, Depends, HTTPException
 
+from services.emotion_classifier_service import EmotionClassifierService
 from services.redis_service import RedisService
 
 router = APIRouter(prefix="/api/interview", tags=["chat"])
@@ -7,6 +8,10 @@ router = APIRouter(prefix="/api/interview", tags=["chat"])
 
 def get_redis_service() -> RedisService:
     return RedisService()
+
+
+def get_emotion_classifier_service() -> EmotionClassifierService:
+    return EmotionClassifierService()
 
 
 @router.post("/start_session")
@@ -20,10 +25,17 @@ async def send_audio(
         session_id: str = Form(...),
         transcript: str = Form(...),
         audio: UploadFile = File(...),
-        redis_service: RedisService = Depends(get_redis_service)
+        redis_service: RedisService = Depends(get_redis_service),
+        emotion_classifier_service: EmotionClassifierService = Depends(get_emotion_classifier_service)
 ):
-    is_ok = await redis_service.add_to_history(session_id, transcript, audio)
-    if not is_ok:
+    file_path = await redis_service.add_to_history(session_id, transcript, audio)
+    if file_path is None:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    prediction = emotion_classifier_service.predict(file_path)
+    is_ok = redis_service.add_emotion_to_session(session_id, prediction)
+
+    if not is_ok:
+        raise HTTPException(status_code=404, detail="Error while adding predicted class")
 
     return {"status": "ok"}

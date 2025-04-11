@@ -4,6 +4,9 @@ import uuid
 from datetime import datetime
 import ffmpeg
 from fastapi import UploadFile
+import numpy as np
+
+from models.prediction_model import PredictionModel
 from redis_client import r
 
 SESSION_TTL = 60 * 30
@@ -19,14 +22,15 @@ class RedisService:
     def init_session(self):
         session_id = str(uuid.uuid4())
         r.setex(f"session:{session_id}", self.session_ttl, json.dumps({
-            "history": []
+            "history": [],
+            "emotions": []
         }))
         return session_id
 
-    async def add_to_history(self, session_id: str, transcript: str, audio: UploadFile) -> bool:
+    async def add_to_history(self, session_id: str, transcript: str, audio: UploadFile):
         key = f"session:{session_id}"
         if not r.exists(key):
-            return False
+            return None
 
         timestamp, filename, filepath = self.prepare_data(session_id)
 
@@ -44,6 +48,21 @@ class RedisService:
 
         r.setex(key, SESSION_TTL, json.dumps(session_data))
 
+        return filepath
+
+    def add_emotion_to_session(self, session_id: str, predicted_class: PredictionModel):
+        key = f"session:{session_id}"
+        if not r.exists(key):
+            return False
+
+        confidence = float(np.max(predicted_class.confidence))
+        if confidence < 0.7:
+            return True
+
+        session_data = json.loads(r.get(key))
+        session_data["emotions"].append([predicted_class.predicted_class, confidence])
+
+        r.setex(key, self.session_ttl, json.dumps(session_data))
         return True
 
     def convert_audio(self, audio_path):
