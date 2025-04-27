@@ -1,17 +1,10 @@
 from fastapi import APIRouter, File, Form, UploadFile, Depends, HTTPException
 
+from dependencies.dependencies_config import get_redis_service, get_emotion_classifier_service
 from services.emotion_classifier_service import EmotionClassifierService
 from services.redis_service import RedisService
 
 router = APIRouter(prefix="/api/interview", tags=["chat"])
-
-
-def get_redis_service() -> RedisService:
-    return RedisService()
-
-
-def get_emotion_classifier_service() -> EmotionClassifierService:
-    return EmotionClassifierService()
 
 
 @router.post("/start_session")
