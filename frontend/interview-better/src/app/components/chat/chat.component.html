@@ -1,10 +1,17 @@
 <div class="p-4">
-  <button (click)="toggleListening()" class="btn btn-primary">
+  <button (click)="startInterview()">Start Interview</button>
+  <button (click)="toggleListening()">
     {{ isListening ? "Stop Listening" : "Start Listening" }}
   </button>
 
+  <div>introduction: {{ introduction }}</div>
+  <div>question: {{ question }}</div>
+  <div>follow up:{{ follow_up }}</div>
+  <div>grade: {{ grade }}</div>
+  <div>explanation: {{ explanation }}</div>
+
   <div class="mt-4">
     <h3>Transcript:</h3>
-    <p>{{ transcript }}</p>
+    <p>{{ fullTranscript }}</p>
   </div>
 </div>

@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import librosa
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
@@ -11,11 +13,18 @@ MODEL_DIR = "notebooks/audio"
 
 class EmotionClassifierService:
     def __init__(self, model_path="model_v3.keras", classes_path="classes.npy"):
-        model_path = os.path.join(MODEL_DIR, model_path)
-        classes_path = os.path.join(MODEL_DIR, classes_path)
-        self.model = keras.models.load_model(model_path)
-        self.le = LabelEncoder()
-        self.le.classes_ = np.load(classes_path, allow_pickle=True)
+        self.model_path = os.path.join(MODEL_DIR, model_path)
+        self.classes_path = os.path.join(MODEL_DIR, classes_path)
+        self.model = None
+        self.le = None
+
+
+    def _load(self):
+        if self.model is None:
+            self.model = keras.models.load_model(self.model_path)
+        if self.le is None:
+            self.le = LabelEncoder()
+            self.le.classes_ = np.load(self.classes_path, allow_pickle=True)
 
     def get_mel_spectrogram(self, file_path, sr=16000, n_mels=128, duration=4, apply_aug=False, augmenter=None):
         y, sr = librosa.load(file_path, sr=sr, duration=duration)
@@ -37,6 +46,7 @@ class EmotionClassifierService:
         return mel_spec_db
 
     def predict(self, file_path):
+        self._load()
         mel_spectrogram = self.get_mel_spectrogram(file_path)
         mel_spectrogram = (mel_spectrogram - mel_spectrogram.mean()) / mel_spectrogram.std()
         mel_spectrogram = mel_spectrogram[np.newaxis, ..., np.newaxis]
@@ -48,3 +58,15 @@ class EmotionClassifierService:
         confidence = float(np.max(predictions))
 
         return PredictionModel(predicted_class=predicted_label, confidence=confidence)
+
+    @staticmethod
+    def get_overall_emotion(emotions: list[list]) -> str | None:
+        scores: dict[str, float] = defaultdict(float)
+        for emotion_class, conf in emotions:
+            scores[emotion_class] += float(conf)
+
+        if len(scores.items()) == 0:
+            return 'neutral'
+
+        overall = max(scores.items(), key=lambda p: p[1])[0]
+        return overall

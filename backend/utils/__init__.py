@@ -1,4 +1,4 @@
-from conversation_message_utils import (get_system_message,
+from .conversation_message_utils import (get_system_message,
                                         get_final_instruction,
                                         get_summarize_instruction,
                                         get_evaluation_instruction,

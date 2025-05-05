@@ -2,6 +2,6 @@ from pydantic import BaseModel
 
 
 class ChromaMetadataModel(BaseModel):
-    difficulty: str
-    type_question: str
-    question: str
+    difficulty: str = 'easy'
+    type_question: str = 'llm'
+    question: str = 'What is your name?'

@@ -1,14 +1,14 @@
 from fastapi import APIRouter, File, Form, UploadFile, Depends, HTTPException
 
-from core import get_redis_service, get_emotion_classifier_service, get_openai_service
-from services import RedisService, EmotionClassifierService, OpenAiService
+from core import get_interview_manager
+from services.conversation.interview_manager import InterviewManager
 
 router = APIRouter(prefix="/api/interview", tags=["chat"])
 
 
 @router.post("/start_session")
-async def start_session(redis_service: RedisService = Depends(get_redis_service)):
-    session_id = redis_service.init_session()
+async def start_session(manager: InterviewManager = Depends(get_interview_manager)):
+    session_id = await manager.start_session()
     return {"session_id": session_id}
 
 
@@ -17,38 +17,54 @@ async def send_audio(
         session_id: str = Form(...),
         transcript: str = Form(...),
         audio: UploadFile = File(...),
-        redis_service: RedisService = Depends(get_redis_service),
-        emotion_classifier_service: EmotionClassifierService = Depends(get_emotion_classifier_service),
-        openai_service: OpenAiService = Depends(get_openai_service)
+        manager: InterviewManager = Depends(get_interview_manager),
 ):
-    corrected_transcript = openai_service.correct_transcript(transcript)
-    file_path = await redis_service.add_to_history(session_id, corrected_transcript, audio)
-    if file_path is None:
-        raise HTTPException(status_code=404, detail="Session not found")
-
-    prediction = emotion_classifier_service.predict(file_path)
-    is_ok = redis_service.add_emotion_to_session(session_id, prediction)
-
-    if not is_ok:
-        raise HTTPException(status_code=404, detail="Error while adding predicted class")
-
+    await manager.process_audio(session_id, transcript, audio)
     return {"status": "ok"}
 
-@router.post("/introduction_message")
+
+@router.post("/start_interview")
 async def start_interview(
         session_id: str = Form(...),
-        openai_service: OpenAiService = Depends(get_openai_service)
+        question_type: str = Form(...),
+        manager: InterviewManager = Depends(get_interview_manager),
 ):
-    introduction = openai_service.start_interview(session_id)
-    return {"introduction": introduction}
+    data = manager.start_interview(session_id, question_type)
+    return {
+        "introduction": data.get("introduction"),
+        "question": data.get("question"),
+    }
 
+
+@router.get("/next_question")
+async def ask_next_question(
+        session_id: str,
+        manager: InterviewManager = Depends(get_interview_manager),
+):
+    data = manager.ask_next_question(session_id)
+    return {
+        "introduction": data.get("introduction"),
+        "question": data.get("question"),
+    }
 
 
 @router.post("/add_message")
 async def add_message(
         session_id: str = Form(...),
-        redis_service: RedisService = Depends(get_redis_service),
-        openai_service: OpenAiService = Depends(get_openai_service)
+        manager: InterviewManager = Depends(get_interview_manager),
 ):
-    transcript = redis_service.get_whole_transcript(session_id)
-    openai_service.add_interview_message(session_id, transcript)
+    gradedAnswer = manager.push_transcript_message(session_id)
+    return {
+        "grade": gradedAnswer.grade,
+        "explanation_of_grade": gradedAnswer.explanation_of_grade,
+        "follow_up_question": gradedAnswer.follow_up_question
+    }
+
+
+@router.get("/feedback")
+async def get_feedback(
+        session_id: str = Form(...),
+):
+    # TODO
+    # after finishing asking questions grade user's responses and give them feedback
+    pass

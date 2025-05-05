@@ -19,6 +19,7 @@ export class SpeechRecognitionService {
   private audioChunks: Blob[] = [];
 
   private ngZone = inject(NgZone)
+  
 
   private initRecognition(): boolean {
     if (typeof window === 'undefined') {
@@ -80,6 +81,7 @@ export class SpeechRecognitionService {
     };
 
     this.mediaRecorder.onstop = () => {
+      console.log("media recorder on stop")
       const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
       this.audioChunks = [];
       this.ngZone.run(() => this.audioSubject.next(audioBlob));

@@ -5,7 +5,7 @@ def get_start_interview_instruction(format_instructions_start_interview):
     return f"Return the result strictly in this JSON format: \n{format_instructions_start_interview}"
 
 def get_start_interview_prompt():
-    return "Start interview by introducing yourself that you are interviewer in Interview Better company."
+    return "Start interview by introducing yourself that you are interviewer in Interview Better company. Your name is Josh."
 
 def get_final_instruction(format_instructions_graded):
     return f"""
@@ -30,12 +30,15 @@ def get_evaluation_instruction():
     """.strip()
 
 
-def get_summarize_instruction():
-    return """You summarize interview process. 
+def get_summarize_instruction(format_intructions):
+    return f"""You summarize interview process. 
     You want to give user feedback about the interview process
     User wants to get feedback about what he should learn to become better at interview process
     You will be given entire process of interview asking question and user answering it.
     User's first answer is directly answering to Original question and then he is answering follow up questions.
     You will have access to grade of assistant and explanations of his grade.
     In field grade provide final grade,
-    In feedback provide whole feedback about user responses."""
+    In feedback provide whole feedback about user responses.
+    
+    {format_intructions}
+    """
