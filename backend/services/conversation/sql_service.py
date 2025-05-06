@@ -6,7 +6,7 @@ PATH_DB = PROJECT_ROOT / "documents.db"
 
 
 class SqlService:
-    def get_random_questions_by_type(self, search_question_type, limit=10):
+    def get_random_questions_by_type(self, search_question_type, limit=2):
         for item in PROJECT_ROOT.iterdir():
             print(item.name)
 

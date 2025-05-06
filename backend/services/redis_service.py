@@ -51,7 +51,7 @@ class RedisService:
         r.setex(key, self.session_ttl, json.dumps(session_data))
         return True
 
-    def get_feedback(self, session_id: str) -> list[tuple[str, int]] | None:
+    def get_feedback(self, session_id: str) -> list[FinalGrade] | None:
         key = f"session:{session_id}"
         if not r.exists(key):
             return None
@@ -59,7 +59,7 @@ class RedisService:
         session_data = json.loads(r.get(key))
         r.expire(key, self.session_ttl)
 
-        return [(fb, int(gr)) for fb, gr in session_data.get("feedback", [])]
+        return [FinalGrade(grade=fb, feedback=int(gr)) for fb, gr in session_data.get("feedback", [])]
 
     async def add_to_history(self, session_id: str, transcript: str, audio: UploadFile):
         key = f"session:{session_id}"
@@ -125,6 +125,15 @@ class RedisService:
         session_data = json.loads(r.get(key))
         r.expire(key, self.session_ttl)
         return session_data.get("question")
+
+    def get_questions(self, session_id: str) -> str | None:
+        key = f"session:{session_id}"
+        if not r.exists(key):
+            return None
+
+        session_data = json.loads(r.get(key))
+        r.expire(key, self.session_ttl)
+        return session_data.get("questions")
 
     def set_follow_up_question(self, session_id: str, follow_up_question):
         key = f"session:{session_id}"

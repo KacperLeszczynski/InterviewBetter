@@ -14,4 +14,12 @@
     <h3>Transcript:</h3>
     <p>{{ fullTranscript }}</p>
   </div>
+
+  @if (finalGrade) {
+  <div>
+    <h3>Your final grade is: {{ finalGrade.grade }}</h3>
+  </div>
+  @for (gradeFeedback of finalGrade.feedbacks; track gradeFeedback) {
+  <p>- {{ gradeFeedback }}</p>
+  } }
 </div>
