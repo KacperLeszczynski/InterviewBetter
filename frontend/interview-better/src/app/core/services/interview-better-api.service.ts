@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { StartSessionModel } from '../models/start-session.model';
 import { StartInterviewModel } from '../models/start-inteview.model';
 import { AddMessageModel } from '../models/add-message.model';
+import { InterviewGradeModel } from '../models/interview-grade.model';
 
 @Injectable({
   providedIn: 'root'
@@ -45,5 +46,15 @@ export class InterviewBetterApiService {
     return this.httpClient.get<StartInterviewModel>(
       '/api/interview/next_question',
       { params }  
-    );  }
+    );  
+  }
+
+  getFeedback(sessionId: string): Observable<InterviewGradeModel> {
+    const params = new HttpParams().set('session_id', sessionId);
+
+    return this.httpClient.get<InterviewGradeModel>(
+      '/api/interview/feedback',
+      { params }  
+    );  
+  }
 }

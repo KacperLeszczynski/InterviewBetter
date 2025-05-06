@@ -30,7 +30,7 @@ class ConversationController:
         count, missed = self.redis.get_counters(session_id)
         pending: Optional[str] = self.redis.get_follow_up_question(session_id)
 
-        if count >= 5:
+        if count >= 1:
             self.redis.reset_followups(session_id)
             return True
 

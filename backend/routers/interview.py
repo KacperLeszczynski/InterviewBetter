@@ -63,8 +63,11 @@ async def add_message(
 
 @router.get("/feedback")
 async def get_feedback(
-        session_id: str = Form(...),
+        session_id: str,
+        manager: InterviewManager = Depends(get_interview_manager),
 ):
-    # TODO
-    # after finishing asking questions grade user's responses and give them feedback
-    pass
+    feedback = manager.get_feedback(session_id)
+    return {
+        "grade": feedback.grade,
+        "feedbacks": feedback.feedback,
+    }

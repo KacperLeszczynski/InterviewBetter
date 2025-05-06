@@ -4,6 +4,7 @@ from fastapi import HTTPException, UploadFile
 
 from models import GradedAnswer
 from models.final_grade_model import FinalGrade
+from models.interview_grade_model import InterviewGradeModel
 from services.redis_service import RedisService
 from services.emotion_classifier_service import EmotionClassifierService
 from services.conversation.openai_service import OpenAiService
@@ -71,14 +72,6 @@ class InterviewManager:
 
         self.conversation_controller.register_assistant(session_id, question)
 
-        if self.conversation_controller.register_user(session_id, transcript):
-            final_grade: FinalGrade = self.openai.create_final_grade(session_id)
-            self.redis.add_feedback(session_id, final_grade)
-            self.redis.delete_current_question(session_id)
-            self.redis.finalize_conversation(session_id)
-
-            return GradedAnswer(grade=0, explanation_of_grade="DONE", follow_up_question="DONE")
-
         graded: GradedAnswer = self.openai.add_interview_message(
             session_id=session_id,
             answer=transcript,
@@ -88,6 +81,28 @@ class InterviewManager:
             question=question,
         )
 
+        if self.conversation_controller.register_user(session_id, transcript):
+            final_grade: FinalGrade = self.openai.create_final_grade(session_id)
+            self.redis.add_feedback(session_id, final_grade)
+            self.redis.delete_current_question(session_id)
+            self.redis.finalize_conversation(session_id)
+            questions = self.redis.get_questions(session_id)
+
+            if len(questions) == 0:
+                return GradedAnswer(grade=0, explanation_of_grade="FINISH", follow_up_question="FINISH")
+
+            return GradedAnswer(grade=0, explanation_of_grade="DONE", follow_up_question="DONE")
+
         self.redis.set_follow_up_question(session_id, graded.follow_up_question)
 
         return graded
+
+    def get_feedback(self, session_id: str) -> InterviewGradeModel:
+        feedback = self.redis.get_feedback(session_id)
+        if feedback is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        mean_grade = sum(f.grade for f in feedback) / len(feedback)
+
+        return InterviewGradeModel(grade=int(mean_grade), feedback=[f.feedback for f in feedback])
+
